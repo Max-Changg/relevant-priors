@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 _cache: dict[tuple[str, str], bool] = {}
 
-MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5")
+MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 
 
 class RateLimiter:
