@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: relevant-priors
+    runtime: docker
+    plan: free
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-haiku-4-5
+      - key: PORT
+        value: "8000"
