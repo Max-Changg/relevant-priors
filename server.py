@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Relevant Priors API")
 
-CONFIDENCE_THRESHOLD = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.75"))
+CONFIDENCE_THRESHOLD = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.45"))
 
 
 # --- Request/Response Models ---

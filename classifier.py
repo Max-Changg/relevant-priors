@@ -168,8 +168,32 @@ _RELATED_REGIONS = {
     ("neck", "spine_cervical"),
 }
 
+# Spine segments that are clinically distinct — c-spine vs l-spine
+_DISTINCT_SPINE_SEGMENTS = {
+    ("spine_cervical", "spine_lumbar"),
+}
+
+# Region pairs that are AMBIGUOUS — sometimes relevant, sometimes not,
+# depending on direction and modality. These get low confidence to defer to LLM.
+_AMBIGUOUS_REGION_PAIRS = {
+    ("chest", "cardiac"),
+    ("chest", "spine_thoracic"),
+    ("neck", "brain"),
+    ("spine_lumbar", "abdomen"),
+    ("spine_lumbar", "pelvis"),
+    ("bone_scan", "chest"),
+    ("bone_scan", "abdomen"),
+    ("bone_scan", "pelvis"),
+    ("bone_scan", "spine"),
+    ("bone_scan", "brain"),
+}
+
 def _regions_related(r1: str, r2: str) -> bool:
     return (r1, r2) in _RELATED_REGIONS or (r2, r1) in _RELATED_REGIONS
+
+
+def _regions_ambiguous(r1: str, r2: str) -> bool:
+    return (r1, r2) in _AMBIGUOUS_REGION_PAIRS or (r2, r1) in _AMBIGUOUS_REGION_PAIRS
 
 
 def _normalize_for_comparison(desc: str) -> str:
@@ -182,6 +206,15 @@ def _normalize_for_comparison(desc: str) -> str:
     desc = re.sub(r'\b(contrast|cntrst)\b', '', desc)
     desc = re.sub(r'\s+', ' ', desc).strip()
     return desc
+
+
+def _has_distinct_spine_segments(regions1: set[str], regions2: set[str]) -> bool:
+    """Check if two region sets contain clinically distinct spine segments."""
+    for r1 in regions1:
+        for r2 in regions2:
+            if (r1, r2) in _DISTINCT_SPINE_SEGMENTS or (r2, r1) in _DISTINCT_SPINE_SEGMENTS:
+                return True
+    return False
 
 
 def heuristic_predict(
@@ -214,16 +247,40 @@ def heuristic_predict(
     if not current_regions or not prior_regions:
         return False, 0.8
 
-    # Direct region overlap = very likely relevant
+    # --- Modality-based exclusions (before region matching) ---
+
+    # DEXA bone density scans are not comparable to structural imaging
+    if current_mod == "DEXA" and prior_mod != "DEXA":
+        return False, 0.85
+    if prior_mod == "DEXA" and current_mod != "DEXA":
+        return False, 0.85
+
+    # --- Region-based matching ---
+
     direct_overlap = current_regions & prior_regions
     if direct_overlap:
+        # Spine segment specificity: c-spine vs l-spine share generic "spine"
+        # but are clinically distinct — defer to LLM
+        if direct_overlap == {"spine"} and _has_distinct_spine_segments(current_regions, prior_regions):
+            return False, 0.5
+
+        # Same region + same modality = highest confidence
+        if current_mod and current_mod == prior_mod:
+            return True, 0.95
+
         return True, 0.9
 
-    # Check related regions (abdomen/pelvis, spine variants, neck/c-spine, etc.)
+    # Check related regions (abdomen/pelvis, spine variants, neck/c-spine)
     for cr in current_regions:
         for pr in prior_regions:
             if _regions_related(cr, pr):
                 return True, 0.76
+
+    # Check ambiguous region pairs — defer to LLM with low confidence
+    for cr in current_regions:
+        for pr in prior_regions:
+            if _regions_ambiguous(cr, pr):
+                return False, 0.5
 
     # No region overlap at all = very likely NOT relevant
     return False, 0.85

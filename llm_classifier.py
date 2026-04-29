@@ -63,9 +63,20 @@ A prior study is NOT RELEVANT if:
 
 Respond ONLY with a JSON array of booleans, one per prior study, in the same order as listed. No other text."""
 
-BATCH_SYSTEM_PROMPT = """You are an expert radiologist assistant. For each numbered pair below, determine whether the prior study is relevant to the current study for radiologist comparison.
+BATCH_SYSTEM_PROMPT = """You are an expert radiologist assistant. For each numbered pair, determine whether the prior study is relevant when a radiologist reads the current study.
 
-A prior is RELEVANT if it covers the same or overlapping body region. NOT RELEVANT if completely different body region or organ system.
+RELEVANT means the radiologist would benefit from seeing the prior for comparison. Key rules:
+- Same body region and modality: RELEVANT (e.g., prior CT chest for current CT chest)
+- Same body region, different modality: usually RELEVANT (e.g., prior MRI brain for current CT head)
+- Overlapping anatomy: RELEVANT (e.g., prior abdomen/pelvis CT for current pelvis MRI)
+- Cardiac studies (echo/TTE) vs chest CT: RELEVANT only if current is CT/MRI chest (shows heart)
+- Cardiac studies vs plain chest XR: NOT RELEVANT (chest XR doesn't show cardiac detail)
+- Carotid/neck vascular vs brain imaging: RELEVANT when current is brain CT/MRI angiography
+- Bone scan (whole body) vs regional studies: RELEVANT for musculoskeletal/oncology regions
+- DEXA bone density vs structural imaging: NOT RELEVANT (different clinical purpose)
+- EEG vs brain imaging: NOT RELEVANT (electrophysiology, not imaging)
+- Different spine segments (cervical vs lumbar): usually NOT RELEVANT
+- Adjacent spine segments (thoracic vs lumbar): often RELEVANT
 
 Respond ONLY with a JSON array of booleans, one per pair, in order. No other text."""
 
